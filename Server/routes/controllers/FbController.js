@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { title } = require("process");
 const filepath = path.resolve(__dirname, "../../", "test.html");
+const savingPath = path.resolve(__dirname, "../../../Client/fb/src/data");
 const storeimages = async (req, res) => {
   try {
     const regex = /<img[^>]+src=["'](.*?)['"]/g;
@@ -53,9 +54,10 @@ const storelinks = async (req, res) => {
 let arr = [];
 let data = [
   {
+    price: "",
     titles: "",
     id: "",
-    price: "",
+    image: "",
   },
 ];
 //Store Titles------------------------------------------------------------------------------------------------------
@@ -145,6 +147,9 @@ const allInone = async (req, res) => {
     const titleRegex = /alt=\\["'](.*?)['"]/g;
     const idRegex = /\/item\/\d*[\/?]/g;
     const priceRegex = /[>?]£\d*[<?]/g;
+    const imgRegex = /<img[^>]+src=["'](.*?)['"]/g;
+    let imageTagArr = [];
+    await storeimages();
     await fs.readFile(filepath, "utf-8", function (err, html) {
       if (err) {
         console.log("Error: ", err);
@@ -159,26 +164,103 @@ const allInone = async (req, res) => {
       const price = html.match(priceRegex);
       //Get Price
       const id = html.match(idRegex);
+      //Get ImageTag
+      const image = html.match(imgRegex);
+      for (let i = 0; i < image.length; i++) {
+        if (
+          (image[i] === "L",
+          image[i + 1] === "o",
+          image[i + 2] === "a",
+          image[i + 3] === "d",
+          image[i + 4] === "i",
+          image[i + 5] === "n",
+          image[i + 6] === "g" || image[i] === " ",
+          image[i + 1] === " ",
+          image[i + 2] === " ")
+        ) {
+          i++;
+        }
+        imageTagArr.push(
+          image[i]
+            .replace(/class="[^"]*"/, "")
+            .replace(/referrerPolicy="[^"]*"/, "")
+            .replace(/<img.*src="/, "")
+        );
+      }
       for (let i = 0; i < price.length; i++) {
         data.push({
-          price: price[i],
+          price: (price[i] = (price[i] || "")
+            .replace(">£", "")
+            .replace("<", "")),
           titles: (arr[i] = (arr[i] || "").replace('alt="', "")),
           id: (id[i] = (id[i] || "").replace("/item/", "")),
+          image: (imageTagArr[i] = (imageTagArr[i] || "").replace(
+            /alt="[^"]*"/,
+            ""
+          )),
+        });
+      }
+
+      // console.log(data);
+      fs.writeFile(
+        `${savingPath}/AllInOne.js`,
+        JSON.stringify(data),
+        function (err) {
+          if (err) {
+            res.status(400).send({ message: "File not saved!", err });
+            console.log(err);
+          }
+          res.status(200).send({ message: "File Saved.", data });
+        }
+      );
+    });
+  } catch (error) {
+    res.status(400).send({ message: "Server Error", error });
+  }
+};
+//ImgTag---------------------------------------------------------------------------------------
+const imagePath = path.resolve(__dirname, "../../", "test.html");
+const imageTag = async (req, res) => {
+  try {
+    const imgRegex = /<img[^>]+src=["'](.*?)['"]/g;
+    await fs.readFile(imagePath, "utf-8", function (err, html) {
+      if (err) {
+        console.log("Error: ", err);
+      }
+      const image = html.match(imgRegex);
+      for (let i = 0; i < image.length; i++) {
+        if (
+          (image[i] === "L",
+          image[i + 1] === "o",
+          image[i + 2] === "a",
+          image[i + 3] === "d",
+          image[i + 4] === "i",
+          image[i + 5] === "n",
+          image[i + 6] === "g" || image[i] === " ",
+          image[i + 1] === " ",
+          image[i + 2] === " ")
+        ) {
+          i++;
+        }
+        data.push({
+          image: (image[i] = (image[i] || "").replace("<img alt=", "")),
         });
       }
       console.log(data);
-      fs.writeFile("AllInOne.json", JSON.stringify(data), function (err) {
+      fs.writeFile("imgtag.json", JSON.stringify(data), function (err) {
         if (err) {
           console.log(err);
         }
-        res.status(200).send("File Saved.", data);
+        console.log("File Saved.");
       });
     });
   } catch (error) {
     res.status(400).send("Server Error", error);
   }
 };
+//-------------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 let IsAlt = (html, index) => {
   if (
     html[index] === "a" &&
@@ -235,4 +317,5 @@ module.exports = {
   getId,
   getPrice,
   allInone,
+  imageTag,
 };
